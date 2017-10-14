@@ -11,23 +11,25 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Process\Process;
 use ZipArchive;
 
 class SetupCommand extends Command
 {
     /**
+     * VERSION
+     * Which compatible with GGWP Core.
+     */
+    const LARAVEL_VERSION   = '';
+    const WORDPRESS_VERSION = '';
+
+    /**
      * Without components installation
      *
      * @var array
      */
-    protected $without = [
-        'laravel'   => [
-            '.gitignore',
-            '.gitattributes',
-            'composer.json',
-            'composer.lock',
-            'phpunit.xml',
-        ],
+    protected $skips = [
+        'laravel'   => ['.gitignore', '.gitattributes', 'composer.json', 'composer.lock', 'phpunit.xml'],
         'wordpress' => [],
     ];
 
@@ -42,8 +44,9 @@ class SetupCommand extends Command
             ->setName('setup')
             ->setDescription('Create a new GGWP application.')
             ->addArgument('name', InputArgument::OPTIONAL)
-            ->addOption('without', null, InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY)
-            ->addOption('withouts', null, InputOption::VALUE_NONE, 'Install with standard without of GGWP')
+            ->addOption('locale', null, InputOption::VALUE_OPTIONAL, 'Select which language want to download.')
+            ->addOption('skip', null, InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Install without component by input')
+            ->addOption('skip-content', null, InputOption::VALUE_NONE, 'Install without component by using standard of GGWP, such as: composer.json, etc')
             ->addOption('dev', null, InputOption::VALUE_NONE, 'Installs the latest "development" release')
             ->addOption('force', null, InputOption::VALUE_NONE, 'Forces install even if the directory already exists');
     }
@@ -66,14 +69,14 @@ class SetupCommand extends Command
 
         $version = $this->getVersion($input);
 
-        $temp_fname = $this->makeName();
+        $temp_fname = $this->makeRandomName('laravel_');
         $temp_zname = $temp_fname . '.zip';
 
-        $without = array();
+        $skips = array();
 
-        if ($input->getOption('withouts') || $input->getOption('without')) {
-            $without = ($input->getOption('withouts')) ? $this->without['laravel'] : $without;
-            $without = ($input->getOption('without')) ? array_merge($without, $input->getOption('without')) : $without;
+        if ($input->getOption('skip-content') || $input->getOption('skip')) {
+            $skips = ($input->getOption('skip-content')) ? $this->skips['laravel'] : $skips;
+            $skips = ($input->getOption('skip')) ? array_merge($skips, $input->getOption('skip')) : $skips;
         }
 
         if (!$input->getOption('force')) {
@@ -85,40 +88,41 @@ class SetupCommand extends Command
         $this->download($zipFile = $temp_zname, $version)
             ->extract($zipFile, $temp_fname)
             ->prepareWritableDirectories($temp_fname, $output)
-            ->move($temp_fname, $directory, $without)
+            ->move($temp_fname, $directory, $skips)
             ->prepareWritableDirectories($directory, $output)
             ->cleanUp($zipFile);
 
-        // $composer = $this->findComposer();
+        $command = $this->findWPCLI();
+        $command = $command . ' core download';
+        $command = $command . ' --path=' . getcwd() . '/system';
+        $command = $command . ' --locale=' .(($input->getOption('locale')) ? $input->getOption('locale') : 'id_ID');
+        $command = $command . (($input->getOption('skip-content')) && ($input->getOption('locale') === 'en_US') ? ' --skip-content' : '');
+        $command = $command . (($input->getOption('force')) ? ' --force' : '');
 
-        // $commands = [
-        //     $composer . ' install --no-scripts',
-        //     $composer . ' run-script post-root-package-install',
-        //     $composer . ' run-script post-create-project-cmd',
-        //     $composer . ' run-script post-autoload-dump',
-        // ];
+        $composer = $this->findComposer();
 
-        // if ($input->getOption('dev')) {
-        //     unset($commands[2]);
+        $commands = [
+            $command,
+            $composer . ' update --no-scripts',
+            $composer . ' run-script post-root-package-update',
+            $composer . ' run-script post-autoload-dump',
+        ];
 
-        //     $commands[] = $composer . ' run-script post-autoload-dump';
-        // }
+        if ($input->getOption('no-ansi')) {
+            $commands = array_map(function ($value) {
+                return $value . ' --no-ansi';
+            }, $commands);
+        }
 
-        // if ($input->getOption('no-ansi')) {
-        //     $commands = array_map(function ($value) {
-        //         return $value . ' --no-ansi';
-        //     }, $commands);
-        // }
+        $process = new Process(implode(' && ', $commands), $directory, null, null, null);
 
-        // $process = new Process(implode(' && ', $commands), $directory, null, null, null);
+        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
+            $process->setTty(true);
+        }
 
-        // if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
-        //     $process->setTty(true);
-        // }
-
-        // $process->run(function ($type, $line) use ($output) {
-        //     $output->write($line);
-        // });
+        $process->run(function ($type, $line) use ($output) {
+            $output->write($line);
+        });
 
         $output->writeln('<comment>Application ready! Build something amazing.</comment>');
     }
@@ -140,21 +144,13 @@ class SetupCommand extends Command
     /**
      * Generate a random temporary folder name / filename.
      *
-     * @return string
-     */
-    protected function makeName()
-    {
-        return getcwd() . '/laravel_' . md5(time() . uniqid());
-    }
-
-    /**
-     * Generate a random temporary filename.
+     * @param  string $prefix [description]
      *
      * @return string
      */
-    protected function makeFilename()
+    protected function makeRandomName($prefix = 'ggwp_')
     {
-        return getcwd() . '/laravel_' . md5(time() . uniqid()) . '.zip';
+        return getcwd() . '/' . $prefix . md5(time() . uniqid());
     }
 
     /**
@@ -204,11 +200,11 @@ class SetupCommand extends Command
     }
 
     /**
-     * [move description]
+     * Move all files on directory into given directory.
      *
-     * @param  [type] $source      [description]
-     * @param  [type] $destination [description]
-     * @param  array  $without     [description]
+     * @param  string $source
+     * @param  string $destination
+     * @param  array  $without
      *
      * @return $this
      */
@@ -240,17 +236,17 @@ class SetupCommand extends Command
     }
 
     /**
-     * Clean-up the Zip file.
+     * Clean-up the file.
      *
-     * @param  string  $zipFile
+     * @param  string  $filepath
      *
      * @return $this
      */
-    protected function cleanUp($zipFile)
+    protected function cleanUp($filepath)
     {
-        @chmod($zipFile, 0777);
+        @chmod($filepath, 0777);
 
-        @unlink($zipFile);
+        @unlink($filepath);
 
         return $this;
     }
@@ -291,6 +287,24 @@ class SetupCommand extends Command
         }
 
         return 'master';
+    }
+
+    /**
+     * Get the WP-CLI command for the environment.
+     *
+     * @return string
+     */
+    protected function findWPCLI()
+    {
+        if (file_exists(getcwd() . '/wp-cli.phar')) {
+            return '"' . PHP_BINARY . '" wp-cli.phar';
+        }
+
+        if (file_exists('/usr/local/bin/wp')) {
+            return 'wp';
+        }
+
+        return getcwd() . '/vendor/bin/wp';
     }
 
     /**
