@@ -3,6 +3,7 @@
 namespace GGWP\Console;
 
 use GuzzleHttp\Client;
+use Illuminate\Config\Repository as ConfigRepository;
 use RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -16,23 +17,6 @@ use ZipArchive;
 
 class SetupCommand extends Command
 {
-    /**
-     * VERSION
-     * Which compatible with GGWP Core.
-     */
-    const LARAVEL_VERSION   = '';
-    const WORDPRESS_VERSION = '';
-
-    /**
-     * Without components installation
-     *
-     * @var array
-     */
-    protected $skips = [
-        'laravel'   => ['.gitignore', '.gitattributes', 'composer.json', 'composer.lock', 'phpunit.xml'],
-        'wordpress' => [],
-    ];
-
     /**
      * Configure the command options.
      *
@@ -67,8 +51,6 @@ class SetupCommand extends Command
 
         $directory = ($input->getArgument('name')) ? getcwd() . '/' . $input->getArgument('name') : getcwd();
 
-        $version = $this->getVersion($input);
-
         $temp_fname = $this->makeRandomName('laravel_');
         $temp_zname = $temp_fname . '.zip';
 
@@ -83,19 +65,25 @@ class SetupCommand extends Command
             $this->verifyApplicationDoesntExist($directory);
         }
 
-        $output->writeln('<info>Setup application...</info>');
+        // Laravel Downloader
+        $output->writeln('<info>Setup application based on Laravel project...</info>');
 
-        $this->download($zipFile = $temp_zname, $version)
+        $this->download($zipFile = $temp_zname, $this->getVersion('laravel', $input))
             ->extract($zipFile, $temp_fname)
             ->prepareWritableDirectories($temp_fname, $output)
             ->move($temp_fname, $directory, $skips)
             ->prepareWritableDirectories($directory, $output)
             ->cleanUp($zipFile);
 
+        // Wordpress Downloader
+        $output->writeln('<info>Setup system based on WordPress core...</info>');
+
         $command = $this->findWPCLI();
+
         $command = $command . ' core download';
-        $command = $command . ' --path=' . getcwd() . '/system';
-        $command = $command . ' --locale=' .(($input->getOption('locale')) ? $input->getOption('locale') : 'id_ID');
+        $command = $command . ' --path=' . $directory . '/system';
+        $command = $command . ' --locale=' . (($input->getOption('locale')) ? $input->getOption('locale') : 'id_ID');
+        $command = $command . ' --version=' . $this->getVersion('wordpress', $input);
         $command = $command . (($input->getOption('skip-content')) && ($input->getOption('locale') === 'en_US') ? ' --skip-content' : '');
         $command = $command . (($input->getOption('force')) ? ' --force' : '');
 
@@ -161,7 +149,7 @@ class SetupCommand extends Command
      *
      * @return $this
      */
-    protected function download($zipFile, $version = 'master')
+    protected function download($zipFile, $source, $version = 'master')
     {
         switch ($version) {
             case 'develop':
@@ -277,16 +265,18 @@ class SetupCommand extends Command
      * Get the version that should be downloaded.
      *
      * @param  \Symfony\Component\Console\Input\InputInterface  $input
+     * @param string    $name
+     * @param boolean   $isPrefixVersion    Default value false.
      *
      * @return string
      */
-    protected function getVersion(InputInterface $input)
+    protected function getVersion(InputInterface $input, $name, $isPrefixVersion = false)
     {
         if ($input->getOption('dev')) {
             return 'develop';
         }
 
-        return 'master';
+        return config('setup.' . $name . 'version') | 'master';
     }
 
     /**
