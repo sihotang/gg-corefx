@@ -12,6 +12,11 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\Process;
 
+/**
+ * Class Command for Installation project application.
+ *
+ * @author Sopar Sihotang <soparsihotang@gmail.com>
+ */
 class InstallCommand extends Command
 {
     /**
