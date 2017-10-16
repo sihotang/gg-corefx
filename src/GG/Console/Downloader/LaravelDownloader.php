@@ -2,8 +2,18 @@
 
 namespace GG\Console\Downloader;
 
+/**
+ * Class Downloader for Laravel.
+ *
+ * @author Sopar Sihotang <soparsihotang@gmail.com>
+ */
 class LaravelDownloader extends Downloader
 {
+    /**
+     * Configuration of Laravel Downloader.
+     *
+     * @return void
+     */
     protected function configure()
     {
         $this->setName('laravel')

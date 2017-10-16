@@ -2,8 +2,18 @@
 
 namespace GG\Console\Downloader;
 
+/**
+ * Class Downloader for WordPress.
+ *
+ * @author Sopar Sihotang <soparsihotang@gmail.com>
+ */
 class WordPressDownloader extends Downloader
 {
+    /**
+     * Configuration of WordPress Downloader.
+     *
+     * @return void
+     */
     protected function configure()
     {
         $this->setName('wordpress')
