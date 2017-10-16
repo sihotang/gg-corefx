@@ -1,9 +1,9 @@
 <?php
 
-namespace GGWP\Console\Installer;
+namespace GG\Console\Installer;
 
-use GGWP\Console\Downloader\LaravelDownloader;
-use GGWP\Console\Downloader\WordPressDownloader;
+use GG\Console\Downloader\LaravelDownloader;
+use GG\Console\Downloader\WordPressDownloader;
 use GuzzleHttp\Client;
 use RuntimeException;
 use Symfony\Component\Console\Command\Command;

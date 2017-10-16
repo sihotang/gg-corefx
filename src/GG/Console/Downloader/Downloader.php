@@ -1,6 +1,6 @@
 <?php
 
-namespace GGWP\Console\Downloader;
+namespace GG\Console\Downloader;
 
 use GuzzleHttp\Client;
 use RuntimeException;

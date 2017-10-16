@@ -1,7 +1,7 @@
 {
-    "name": "ggwp/corefx",
-    "description": "The GGWP Core Framework.",
-    "keywords": ["framework", "cms", "laravel", "wordpress", "ggwp"],
+    "name": "gg/corefx",
+    "description": "The GG Core Framework.",
+    "keywords": ["framework", "cms", "laravel", "wordpress", "gg"],
     "license": "MIT",
     "authors": [
         {
@@ -27,10 +27,10 @@
     },
     "autoload": {
         "psr-4": {
-            "GGWP\\": "src/GGWP/"
+            "GG\\": "src/GG/"
         },
         "files": [
-            "src/GGWP/Support/helpers.php"
+            "src/GG/Support/helpers.php"
         ]
     },
     "extra": {
