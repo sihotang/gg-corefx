@@ -4,10 +4,10 @@
 if (file_exists(__DIR__.'/../../autoload.php')) {
     require __DIR__.'/../../autoload.php';
 } else {
-    require __DIR__.'/vendor/autoload.php';
+    require __DIR__.'/../vendor/autoload.php';
 }
 
 $app = new Symfony\Component\Console\Application('GGWP Installer', '0.1.0');
-$app->add(new GGWP\Installer\Console\NewCommand);
+$app->add(new GGWP\Console\Installer\InstallCommand);
 
 $app->run();

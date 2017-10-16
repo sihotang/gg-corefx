@@ -1,9 +1,10 @@
 <?php
 
-namespace GGWP\Console;
+namespace GGWP\Console\Installer;
 
+use GGWP\Console\Downloader\LaravelDownloader;
+use GGWP\Console\Downloader\WordPressDownloader;
 use GuzzleHttp\Client;
-use Illuminate\Config\Repository as ConfigRepository;
 use RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -15,8 +16,68 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Process;
 use ZipArchive;
 
-class SetupCommand extends Command
+class InstallCommand extends Command
 {
+    const LARAVEL_VERSION   = '5.5.0';
+    const WORDPRESS_VERSION = '4.8.2';
+
+    private $config = [
+        'laravel'   => [
+            'version' => [
+                'release'     => '5.5.0',
+                'development' => 'develop',
+                'latest'      => 'latest',
+                'default'     => '5.5.0',
+            ],
+            'source'  => [
+                'https://github.com/laravel/laravel/releases/',
+                'http://cabinet.laravel.com/',
+            ],
+
+            /**
+             * Skip files while installation for initialize project
+             * While creating project this files will be skipping by system.
+             */
+            'skips'   => [
+                // Git Components
+                '.gitignore',
+                '.gitattributes',
+
+                // Composer Components
+                'composer.json',
+                'composer.lock',
+
+                // PHP-Unit Components
+                'phpunit.xml',
+            ],
+        ],
+        'wordpress' => [
+            'version' => [
+                'release'     => '4.8.2',
+                'development' => 'nightly',
+                'latest'      => 'latest',
+                'default'     => 'latest',
+            ],
+
+            /**
+             * Skip files while installation for initialize project
+             * While creating project this files will be skipping by system.
+             */
+            'skips'   => [
+                // Git Components
+                '.gitignore',
+                '.gitattributes',
+
+                // Composer Components
+                'composer.json',
+                'composer.lock',
+
+                // PHP-Unit Components
+                'phpunit.xml',
+            ],
+        ],
+    ];
+
     /**
      * Configure the command options.
      *
@@ -25,7 +86,7 @@ class SetupCommand extends Command
     protected function configure()
     {
         $this
-            ->setName('setup')
+            ->setName('install')
             ->setDescription('Create a new GGWP application.')
             ->addArgument('name', InputArgument::OPTIONAL)
             ->addOption('locale', null, InputOption::VALUE_OPTIONAL, 'Select which language want to download.')
@@ -49,68 +110,40 @@ class SetupCommand extends Command
             throw new RuntimeException('The Zip PHP extension is not installed. Please install it and try again.');
         }
 
-        $directory = ($input->getArgument('name')) ? getcwd() . '/' . $input->getArgument('name') : getcwd();
+        $downloader_LV = (new LaravelDownloader($this->getApplication(), $input, $output));
+        $downloader_WP = (new WordPressDownloader($this->getApplication(), $input, $output, null, $downloader_LV->getTarget() . DIRECTORY_SEPARATOR . 'system'));
 
-        $temp_fname = $this->makeRandomName('laravel_');
-        $temp_zname = $temp_fname . '.zip';
+        $statusCode = $downloader_LV->run();
 
-        $skips = array();
-
-        if ($input->getOption('skip-content') || $input->getOption('skip')) {
-            $skips = ($input->getOption('skip-content')) ? $this->skips['laravel'] : $skips;
-            $skips = ($input->getOption('skip')) ? array_merge($skips, $input->getOption('skip')) : $skips;
+        if ($statusCode == 0) {
+            $statusCode = $downloader_WP->run();
         }
 
-        if (!$input->getOption('force')) {
-            $this->verifyApplicationDoesntExist($directory);
+        if (file_exists($downloader_LV->getTarget() . DIRECTORY_SEPARATOR . 'composer.json')) {
+            $composer = $this->findComposer();
+
+            $commands = [
+                $composer . ' update --no-scripts',
+                $composer . ' run-script post-root-package-update',
+                $composer . ' run-script post-autoload-dump',
+            ];
+
+            if ($input->getOption('no-ansi')) {
+                $commands = array_map(function ($value) {
+                    return $value . ' --no-ansi';
+                }, $commands);
+            }
+
+            $process = new Process(implode(' && ', $commands), $downloader_LV->getTarget(), null, null, null);
+
+            if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
+                $process->setTty(true);
+            }
+
+            $process->run(function ($type, $line) use ($output) {
+                $output->write($line);
+            });
         }
-
-        // Laravel Downloader
-        $output->writeln('<info>Setup application based on Laravel project...</info>');
-
-        $this->download($zipFile = $temp_zname, $this->getVersion('laravel', $input))
-            ->extract($zipFile, $temp_fname)
-            ->prepareWritableDirectories($temp_fname, $output)
-            ->move($temp_fname, $directory, $skips)
-            ->prepareWritableDirectories($directory, $output)
-            ->cleanUp($zipFile);
-
-        // Wordpress Downloader
-        $output->writeln('<info>Setup system based on WordPress core...</info>');
-
-        $command = $this->findWPCLI();
-
-        $command = $command . ' core download';
-        $command = $command . ' --path=' . $directory . '/system';
-        $command = $command . ' --locale=' . (($input->getOption('locale')) ? $input->getOption('locale') : 'id_ID');
-        $command = $command . ' --version=' . $this->getVersion('wordpress', $input);
-        $command = $command . (($input->getOption('skip-content')) && ($input->getOption('locale') === 'en_US') ? ' --skip-content' : '');
-        $command = $command . (($input->getOption('force')) ? ' --force' : '');
-
-        $composer = $this->findComposer();
-
-        $commands = [
-            $command,
-            $composer . ' update --no-scripts',
-            $composer . ' run-script post-root-package-update',
-            $composer . ' run-script post-autoload-dump',
-        ];
-
-        if ($input->getOption('no-ansi')) {
-            $commands = array_map(function ($value) {
-                return $value . ' --no-ansi';
-            }, $commands);
-        }
-
-        $process = new Process(implode(' && ', $commands), $directory, null, null, null);
-
-        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
-            $process->setTty(true);
-        }
-
-        $process->run(function ($type, $line) use ($output) {
-            $output->write($line);
-        });
 
         $output->writeln('<comment>Application ready! Build something amazing.</comment>');
     }
@@ -273,10 +306,10 @@ class SetupCommand extends Command
     protected function getVersion(InputInterface $input, $name, $isPrefixVersion = false)
     {
         if ($input->getOption('dev')) {
-            return 'develop';
+            return $this->config[$name]['version']['development'];
         }
 
-        return config('setup.' . $name . 'version') | 'master';
+        return $this->config[$name]['version']['default'] | $this->config[$name]['version']['latest'];
     }
 
     /**
