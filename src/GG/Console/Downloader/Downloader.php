@@ -12,48 +12,157 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Process\Process;
 use ZipArchive;
 
+/**
+ * Base class console for downloading application project.
+ *
+ * @author Sopar Sihotang <soparsihotang@gmail.com>
+ */
 abstract class Downloader
 {
+    /**
+     * The Name of project.
+     *
+     * @var string
+     */
     private $name;
 
+    /**
+     * The version of project.
+     *
+     * @var string
+     */
     private $version;
 
+    /**
+     * The version development of project.
+     * Default value: 'develop'
+     *
+     * @var string
+     */
     private $version_dev = 'develop';
 
+    /**
+     * The url source for downloading project.
+     *
+     * @var string
+     */
     private $url;
 
+    /**
+     * The command for downloading project,
+     * Based on CLI on project.
+     *
+     * @var [type]
+     */
     private $command;
 
+    /**
+     * The command parameters.
+     *     ex: array ('--force' => false)
+     *
+     * @var array
+     */
     private $command_args = array();
 
+    /**
+     * The name of phar file,
+     * While executing command CLI of project.
+     *     ex: 'wp-cli.phar'
+     *
+     * @var string
+     */
     private $command_phar = '';
 
+    /**
+     * The target directory for downloading.
+     *
+     * @var string
+     */
     private $target;
 
+    /**
+     * The extension file based on resource.
+     * Default value: zip
+     *
+     * @var string
+     */
     private $extension = 'zip';
 
+    /**
+     * The language of source project.
+     *     ex: en_US, id_ID, etc
+     *
+     * @var string
+     */
     private $locale;
 
+    /**
+     * The version of project,
+     * If true will be downloading dev ex: 0.1-dev
+     * else will be downloading tag release.
+     *
+     * @var boolean
+     */
     private $development = false;
 
+    /**
+     * If true will be replace existing directory on target,
+     * else skip for replacing.
+     *
+     * @var boolean
+     */
     private $force = false;
 
+    /**
+     * The contents for skipping download
+     *     ex: '.gitignore, .gitattributes, composer.json, etc'.
+     *
+     * @var array
+     */
     private $skips = array();
 
+    /**
+     * Change mod directories on project, while finished download.
+     *
+     * @var array
+     */
     private $writeable_dirs = array();
 
+    /**
+     * Application based on command instance.
+     *
+     * @var Symfony\Component\Console\Application
+     */
     private $application;
 
+    /**
+     * Input based on command instance.
+     *
+     * @var Symfony\Component\Console\Input\InputInterface
+     */
     private $input;
 
+    /**
+     * Output based on command instance.
+     *
+     * @var Symfony\Component\Console\Output\OutputInterface
+     */
     private $output;
 
+    /**
+     * Constructor: create a new Downloader instance.
+     *
+     * @param Symfony\Component\Console\Application             $application
+     * @param Symfony\Component\Console\Input\InputInterface    $input
+     * @param Symfony\Component\Console\Output\OutputInterface  $output
+     * @param string|null                                       $version
+     * @param string|null                                       $target
+     */
     public function __construct(Application $application, InputInterface $input, OutputInterface $output, $version = null, $target = null)
     {
         $this->application = $application;
 
-        $this->input = $input;
-
+        $this->input  = $input;
         $this->output = $output;
 
         if ($version !== null) {
@@ -87,6 +196,13 @@ abstract class Downloader
         }
     }
 
+    /**
+     * Download action by using command,
+     * represent CLI on project.
+     *     ex: execution WP-CLI
+     *
+     * @return Downloader
+     */
     protected function downloadByCommand()
     {
         $output = $this->output;
@@ -104,6 +220,11 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Download action by using URL resource.
+     *
+     * @return Downloader
+     */
     protected function downloadByURL()
     {
         $input = $this->input;
@@ -121,6 +242,13 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Download action for downloading archive.
+     *
+     * @param  string $archive
+     *
+     * @return Downloader
+     */
     protected function downloadArchive($archive)
     {
         $response = (new Client)->get($this->url . '/' . $this->getVersion() . '.' . $this->extension);
@@ -130,6 +258,14 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Extract archive to directory.
+     *
+     * @param  string $file
+     * @param  string $directory
+     *
+     * @return Downloader
+     */
     protected function extract($file, $directory)
     {
         $archive = new ZipArchive;
@@ -143,6 +279,14 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Moving all contents from directory to destination directory.
+     *
+     * @param  string $source
+     * @param  string $destination
+     *
+     * @return Downloader
+     */
     protected function move($source, $destination)
     {
         $directory = opendir($source);
@@ -170,6 +314,14 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Change mode | chmod directories to writable on array.
+     *     action: chmod 755
+     *
+     * @param  array  $directories
+     *
+     * @return Downloader
+     */
     protected function rewriteDirs($directories = array())
     {
         if (sizeof($directories) > 0) {
@@ -187,6 +339,13 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Delete file.
+     *
+     * @param  string $path
+     *
+     * @return Downloader
+     */
     protected function cleanFile($path)
     {
         @chmod($path, 0777);
@@ -196,11 +355,22 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Get random name based on time & uniqid.
+     *
+     * @return string
+     */
     protected function makeRandomName()
     {
         return $this->name . md5(time() . uniqid());
     }
 
+    /**
+     * Finding command based on CLI of project,
+     * Used while type download by command.
+     *
+     * @return string
+     */
     protected function findCommand()
     {
         if (file_exists(getcwd() . DIRECTORY_SEPARATOR . $this->command_phar)) {
@@ -218,6 +388,14 @@ abstract class Downloader
         return $command;
     }
 
+    /**
+     * Verification application if already exists,
+     * based on directory is exists.
+     *
+     * @return void
+     *
+     * @throws RuntimeException when application already exists.
+     */
     protected function verify()
     {
         if ((is_dir($this->getTarget()) || is_file($this->getTarget())) && $this->getTarget() != getcwd()) {
@@ -225,6 +403,12 @@ abstract class Downloader
         }
     }
 
+    /**
+     * Global action download,
+     * Check downloading if parameter command using force mode.
+     *
+     * @return Downloader
+     */
     protected function download()
     {
         $output = $this->output;
@@ -233,7 +417,7 @@ abstract class Downloader
             $this->verify();
         }
 
-        $output->writeln('<info>Initialize the '. title_case($this->getName()) . ' project app.</info>');
+        $output->writeln('<info>Initialize the ' . title_case($this->getName()) . ' project app.</info>');
 
         if ($this->command) {
             $this->downloadByCommand();
@@ -241,16 +425,24 @@ abstract class Downloader
             $this->downloadByURL();
         }
 
-        $output->writeln('<info>'. title_case($this->getName()) . ' has been successfully initialized.</info>');
+        $output->writeln('<info>' . title_case($this->getName()) . ' has been successfully initialized.</info>');
 
         return $this;
     }
 
+    /**
+     * Configure the current downloader.
+     */
     protected function configure()
     {
 
     }
 
+    /**
+     * Runs the downloader.
+     *
+     * @return integer
+     */
     public function run()
     {
         $statusCode = $this->download();
@@ -258,6 +450,13 @@ abstract class Downloader
         return is_numeric($statusCode) ? (int) $statusCode : 0;
     }
 
+    /**
+     * Set the name of downloader.
+     *
+     * @param string $name
+     *
+     * @return Downloader
+     */
     public function setName($name)
     {
         $this->name = $name;
@@ -265,11 +464,23 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader name.
+     *
+     * @return string
+     */
     public function getName()
     {
         return $this->name;
     }
 
+    /**
+     * Set the version of downloader.
+     *
+     * @param string $version
+     *
+     * @return Downloader
+     */
     public function setVersion($version)
     {
         $this->version = $version;
@@ -277,11 +488,23 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader version.
+     *
+     * @return string
+     */
     public function getVersion()
     {
         return $this->version;
     }
 
+    /**
+     * Set the version development of downloader.
+     *
+     * @param string $version
+     *
+     * @return Downloader
+     */
     public function setDevelopmentVersion($version)
     {
         $this->version_dev = $version;
@@ -289,11 +512,23 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader version development.
+     *
+     * @return string
+     */
     public function getDevelopmentVersion()
     {
         return $this->version_dev;
     }
 
+    /**
+     * Set the url of downloader.
+     *
+     * @param string $url
+     *
+     * @return Downloader
+     */
     public function setURL($url)
     {
         $this->url = $url;
@@ -301,11 +536,26 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader url.
+     *
+     * @return string
+     */
     public function getURL()
     {
         return $this->url;
     }
 
+    /**
+     * Set the basic command, parameters of command,
+     * and phar name of command downloader.
+     *
+     * @param string        $command
+     * @param array         $args
+     * @param string|empty  $phar
+     *
+     * @return Downloader
+     */
     public function setCommand($command, $args = array(), $phar = '')
     {
         $this->command = $command;
@@ -316,16 +566,34 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader command.
+     *
+     * @return string
+     */
     public function getCommand()
     {
         return $this->command;
     }
 
+    /**
+     * Returns the downloader command name.
+     *     ex: wp core download,
+     * Will returns 'wp' the first index.
+     *
+     * @return string
+     */
     public function getCommandName()
     {
         return $this->getCommands()[0];
     }
 
+    /**
+     * Returns the downloader command execution.
+     * All parameters included on execution.
+     *
+     * @return string
+     */
     public function getCommandExecution()
     {
         $commands = $this->getCommands();
@@ -349,21 +617,45 @@ abstract class Downloader
         return $this->findCommand() . ' ' . implode(' ', $commands) . ' ' . $args;
     }
 
+    /**
+     * Returns the downloader parameters command.
+     *
+     * @return array
+     */
     public function getCommandArgs()
     {
         return $this->command_args;
     }
 
+    /**
+     * Returns the downloader command phar name.
+     *
+     * @return string
+     */
     public function getCommandPhar()
     {
         return $this->command_phar;
     }
 
+    /**
+     * Returns the downloader commands.
+     *     ex: wp core download
+     * Will returns to array by using explode ' '.
+     *
+     * @return string
+     */
     public function getCommands()
     {
         return explode(' ', $this->command);
     }
 
+    /**
+     * Set the target directory of downloader.
+     *
+     * @param string $target
+     *
+     * @return Downloader
+     */
     public function setTarget($target)
     {
         $this->target = $target;
@@ -371,11 +663,24 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader path directory.
+     *
+     * @return string
+     */
     public function getTarget()
     {
         return $this->target;
     }
 
+    /**
+     * Set the name extension of downloader.
+     *     ex: zip | tar.gz
+     *
+     * @param string $extension
+     *
+     * @return Downloader
+     */
     public function setExtension($extension)
     {
         $this->extension = $extension;
@@ -383,11 +688,24 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader extension.
+     *
+     * @return string
+     */
     public function getExtension()
     {
         return $this->extension;
     }
 
+    /**
+     * Set the locale of downloader.
+     *     ex: en_US, id_ID, etc.
+     *
+     * @param string $locale
+     *
+     * @return Downloader
+     */
     public function setLocale($locale)
     {
         $this->locale = $locale;
@@ -395,11 +713,25 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader locale.
+     *
+     * @return string
+     */
     public function getLocale()
     {
         return $this->locale;
     }
 
+    /**
+     * Set the resource of downloader.
+     * If set to true, will be downloading resource development,
+     * Will be download release version | latest.
+     *
+     * @param boolean $development
+     *
+     * @return Downloader
+     */
     public function setDevelopment($development)
     {
         $this->development = $development;
@@ -407,11 +739,24 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader resource.
+     *
+     * @return boolean
+     */
     public function getDevelopment()
     {
         return $this->development;
     }
 
+    /**
+     * Set the force of downloader.
+     * If set to true will be replacing existing directory.
+     *
+     * @param string $name
+     *
+     * @return Downloader
+     */
     public function setForce($force)
     {
         $this->force = $force;
@@ -419,11 +764,24 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Return the mode of downloader.
+     *
+     * @return boolean
+     */
     public function getForce()
     {
         return $this->force;
     }
 
+    /**
+     * Set all skips content not needed on project.
+     *     ex: .gitignore, .gitattributes, composer.json, etc.
+     *
+     * @param array $skips
+     *
+     * @return Downloader
+     */
     public function setSkips($skips)
     {
         $this->skips = $skips;
@@ -431,11 +789,23 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader skips content.
+     *
+     * @return array
+     */
     public function getSkips()
     {
         return $this->skips;
     }
 
+    /**
+     * Set the writable directories of downloader.
+     *
+     * @param array $directories
+     *
+     * @return Downloader
+     */
     public function setWritableDirs($directories)
     {
         array_walk($directories, function (&$value, $key) {
@@ -447,6 +817,11 @@ abstract class Downloader
         return $this;
     }
 
+    /**
+     * Returns the downloader directories writable.
+     *
+     * @return array
+     */
     public function getWritableDirs()
     {
         return $this->writable_dirs;

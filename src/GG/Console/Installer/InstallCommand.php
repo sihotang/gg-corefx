@@ -60,7 +60,7 @@ class InstallCommand extends Command
 
             $commands = [
                 $composer . ' update --no-scripts',
-                $composer . ' run-script post-root-package-update',
+                $composer . ' run-script post-root-package-install',
                 $composer . ' run-script post-autoload-dump',
             ];
 
