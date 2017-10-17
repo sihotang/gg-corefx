@@ -39,7 +39,7 @@ abstract class Downloader
      *
      * @var string
      */
-    private $version_dev = 'develop';
+    private $versionDev = 'develop';
 
     /**
      * The url source for downloading project.
@@ -62,7 +62,7 @@ abstract class Downloader
      *
      * @var array
      */
-    private $command_args = array();
+    private $commandArgs = array();
 
     /**
      * The name of phar file,
@@ -71,7 +71,7 @@ abstract class Downloader
      *
      * @var string
      */
-    private $command_phar = '';
+    private $commandPhar = '';
 
     /**
      * The target directory for downloading.
@@ -126,7 +126,7 @@ abstract class Downloader
      *
      * @var array
      */
-    private $writeable_dirs = array();
+    private $writableDirs = array();
 
     /**
      * Application based on command instance.
@@ -229,14 +229,14 @@ abstract class Downloader
     {
         $input = $this->input;
 
-        $temp_name    = $this->makeRandomName();
-        $temp_dir     = getcwd() . DIRECTORY_SEPARATOR . $temp_name;
-        $archive_path = getcwd() . DIRECTORY_SEPARATOR . $temp_name . '.' . $this->extension;
+        $tempName    = $this->makeRandomName();
+        $tempDir     = getcwd() . DIRECTORY_SEPARATOR . $tempName;
+        $archivePath = getcwd() . DIRECTORY_SEPARATOR . $tempName . '.' . $this->extension;
 
-        $this->downloadArchive($archive = $archive_path)
-            ->extract($archive, $temp_dir)
-            ->move($temp_dir, $this->getTarget())
-            ->rewriteDirs($this->writable_dirs)
+        $this->downloadArchive($archive = $archivePath)
+            ->extract($archive, $tempDir)
+            ->move($tempDir, $this->getTarget())
+            ->rewriteDirs($this->writableDirs)
             ->cleanFile($archive);
 
         return $this;
@@ -373,17 +373,17 @@ abstract class Downloader
      */
     protected function findCommand()
     {
-        if (file_exists(getcwd() . DIRECTORY_SEPARATOR . $this->command_phar)) {
-            $command = '"' . PHP_BINARY . '" ' . $this->command_phar;
+        if (file_exists(getcwd() . DIRECTORY_SEPARATOR . $this->commandPhar)) {
+            $command = '"' . PHP_BINARY . '" ' . $this->commandPhar;
         }
 
-        $command_name = $this->getCommandName();
+        $commandName = $this->getCommandName();
 
-        if (file_exists('/usr/local/bin/' . $command_name)) {
-            $command = $command_name;
+        if (file_exists('/usr/local/bin/' . $commandName)) {
+            $command = $commandName;
         }
 
-        $command = getcwd() . '/vendor/bin/' . $command_name;
+        $command = getcwd() . '/vendor/bin/' . $commandName;
 
         return $command;
     }
@@ -507,7 +507,7 @@ abstract class Downloader
      */
     public function setDevelopmentVersion($version)
     {
-        $this->version_dev = $version;
+        $this->versionDev = $version;
 
         return $this;
     }
@@ -519,7 +519,7 @@ abstract class Downloader
      */
     public function getDevelopmentVersion()
     {
-        return $this->version_dev;
+        return $this->versionDev;
     }
 
     /**
@@ -560,8 +560,8 @@ abstract class Downloader
     {
         $this->command = $command;
 
-        $this->command_args = $args;
-        $this->command_phar = $phar;
+        $this->commandArgs = $args;
+        $this->commandPhar = $phar;
 
         return $this;
     }
@@ -624,7 +624,7 @@ abstract class Downloader
      */
     public function getCommandArgs()
     {
-        return $this->command_args;
+        return $this->commandArgs;
     }
 
     /**
@@ -634,7 +634,7 @@ abstract class Downloader
      */
     public function getCommandPhar()
     {
-        return $this->command_phar;
+        return $this->commandPhar;
     }
 
     /**
@@ -812,7 +812,7 @@ abstract class Downloader
             $value = $this->getTarget() . DIRECTORY_SEPARATOR . $value;
         });
 
-        $this->writable_dirs = $directories;
+        $this->writableDirs = $directories;
 
         return $this;
     }
@@ -824,7 +824,7 @@ abstract class Downloader
      */
     public function getWritableDirs()
     {
-        return $this->writable_dirs;
+        return $this->writableDirs;
     }
 
     /**

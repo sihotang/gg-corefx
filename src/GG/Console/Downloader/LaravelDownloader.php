@@ -21,6 +21,6 @@ class LaravelDownloader extends Downloader
             ->setDevelopmentVersion('develop')
             ->setURL('http://cabinet.laravel.com')
             ->setWritableDirs(array('bootstrap/cache', 'storage'))
-            ->setSkips(array('.gitignore', '.gitattributes', 'composer.json', 'composer.lock', 'phpunit.xml'));
+            ->setSkips(array('.gitignore', '.gitattributes', 'artisan', 'composer.json', 'composer.lock', 'phpunit.xml'));
     }
 }

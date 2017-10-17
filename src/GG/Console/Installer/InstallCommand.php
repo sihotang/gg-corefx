@@ -51,16 +51,16 @@ class InstallCommand extends Command
             throw new RuntimeException('The Zip PHP extension is not installed. Please install it and try again.');
         }
 
-        $downloader_LV = (new LaravelDownloader($this->getApplication(), $input, $output));
-        $downloader_WP = (new WordPressDownloader($this->getApplication(), $input, $output, null, $downloader_LV->getTarget() . DIRECTORY_SEPARATOR . 'system'));
+        $downloaderLV = (new LaravelDownloader($this->getApplication(), $input, $output));
+        $downloaderWP = (new WordPressDownloader($this->getApplication(), $input, $output, null, $downloaderLV->getTarget() . DIRECTORY_SEPARATOR . 'system'));
 
-        $statusCode = $downloader_LV->run();
+        $statusCode = $downloaderLV->run();
 
         if ($statusCode == 0) {
-            $statusCode = $downloader_WP->run();
+            $statusCode = $downloaderWP->run();
         }
 
-        if (file_exists($downloader_LV->getTarget() . DIRECTORY_SEPARATOR . 'composer.json')) {
+        if (file_exists($downloaderLV->getTarget() . DIRECTORY_SEPARATOR . 'composer.json')) {
             $composer = $this->findComposer();
 
             $commands = [
@@ -75,7 +75,7 @@ class InstallCommand extends Command
                 }, $commands);
             }
 
-            $process = new Process(implode(' && ', $commands), $downloader_LV->getTarget(), null, null, null);
+            $process = new Process(implode(' && ', $commands), $downloaderLV->getTarget(), null, null, null);
 
             if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
                 $process->setTty(true);
