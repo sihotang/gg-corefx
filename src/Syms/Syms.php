@@ -1,10 +1,10 @@
 <?php
 
-namespace GG;
+namespace Syms;
 
 use Illuminate\Container\Container;
 
-class Application extends Container
+class Syms extends Container
 {
     public function __construct()
     {

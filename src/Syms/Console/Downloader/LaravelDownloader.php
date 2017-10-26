@@ -1,6 +1,6 @@
 <?php
 
-namespace GG\Console\Downloader;
+namespace Syms\Console\Downloader;
 
 /**
  * Class Downloader for Laravel.
